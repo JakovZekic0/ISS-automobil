@@ -4,6 +4,7 @@ using UnityEngine;
 public class Blinker : MonoBehaviour
 {
     public Light blinkerLight;
+    public AudioSource blinkerSound;
     public float blinkInterval = 0.5f;
 
     private bool isBlinking = false;
@@ -32,6 +33,10 @@ public class Blinker : MonoBehaviour
         while (true)
         {
             blinkerLight.enabled = !blinkerLight.enabled;
+
+            if (blinkerLight.enabled) // zvuk
+                blinkerSound.Play();
+
             yield return new WaitForSeconds(blinkInterval);
         }
     }
