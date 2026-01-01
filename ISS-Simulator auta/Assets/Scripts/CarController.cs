@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class CarController : MonoBehaviour
 {
@@ -64,7 +65,12 @@ public class CarController : MonoBehaviour
         {
             useDifferentialMotion = !useDifferentialMotion;
             if (useDifferentialMotion) SyncODEFromRigidbody();
-        }     
+        }  
+        
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            SceneManager.LoadScene("Main");
+        }
     }
     void FixedUpdate()
     {
