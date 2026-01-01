@@ -12,8 +12,10 @@ public class NewBehaviourScript : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
-    {
-        transform.Translate(0f,0f,speed*Time.deltaTime);
-    }
+
+    // KOMENTIRANO DA SE AUTI NE ZABIJAJU U ZGRADE U WORLD SCENI
+    //void Update()
+    //{
+    //    transform.Translate(0f,0f,speed*Time.deltaTime);
+    //}
 }

@@ -10,6 +10,7 @@ public class FirstPersonInterior : MonoBehaviour
     [SerializeField] private RawImage SteeringWheel;
     [SerializeField] private CarController carController;
     [SerializeField] private TextMeshProUGUI text;
+    [SerializeField] private TextMeshProUGUI drivingMode;
 
 
     float steeringWheelCurrentAngle;
@@ -27,6 +28,15 @@ public class FirstPersonInterior : MonoBehaviour
         {
             if (canvasGroup.alpha == 0) canvasGroup.alpha = 1;
             else canvasGroup.alpha = 0;
+        }
+
+        if (carController.useDifferentialMotion)
+        {
+            drivingMode.text = "Model: Dynamic";
+        }
+        else
+        {
+            drivingMode.text = "Model: Simple";
         }
 
         //steering wheel

@@ -31,21 +31,58 @@ public class CarController : MonoBehaviour
     private float originalDrag;
     private Rigidbody rigidbody;
 
+    //Differential equations stuff
+    public bool useDifferentialMotion = false;
+
+    [SerializeField] private float engineForce = 8000f;
+    [SerializeField] private float brakeForceODE = 12000f;
+    [SerializeField] private float airDragCoefficient = 0.4257f;
+    [SerializeField] private float rollingResistance = 12.8f;
+
+    [SerializeField] private float steeringTorque = 1500f;
+    [SerializeField] private float yawInertia = 2500f;
+
+    private Vector3 odeVelocity;
+    private Vector3 odePosition;
+    private float odeYaw;
+    private float odeYawRate;
+
     void Start()
     {
         rigidbody = GetComponent<Rigidbody>();
         carRigidbody.centerOfMass = carCenterOfMassTransform.localPosition;
         originalDrag = carRigidbody.drag;
-    }
 
+        odePosition = transform.position;
+        odeVelocity = Vector3.zero;
+        odeYaw = transform.eulerAngles.y;
+        odeYawRate = 0f;
+    }
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            useDifferentialMotion = !useDifferentialMotion;
+            if (useDifferentialMotion) SyncODEFromRigidbody();
+        }     
+    }
     void FixedUpdate()
     {
         GetInput();
-        MotorForce();
-        Steering();
-        ApplyBrakes();
+
+        if (useDifferentialMotion)
+        {
+            DifferentialForceMotion();
+            UpdateWheelCollidersODE();
+        }
+        else
+        {
+            MotorForce();
+            Steering();
+            ApplyBrakes();
+        }
         UpdateWheels();
-        Debug.Log(Carspeed());
+        //Debug.Log(Carspeed());
     }
 
     void GetInput()
@@ -100,5 +137,81 @@ public class CarController : MonoBehaviour
     {
         float speed = rigidbody.velocity.magnitude*2.23693629f;
         return speed;
+    }
+
+    public void DifferentialForceMotion()
+    {
+        float dt = Time.fixedDeltaTime;
+        float mass = carRigidbody.mass;
+
+        Vector3 forward = Quaternion.Euler(0f, odeYaw, 0f) * Vector3.forward;
+        Vector3 velocityDir = odeVelocity.normalized;
+
+        //engine force
+        Vector3 engine = forward * (engineForce * verticalInput);
+
+        //brake force
+        bool braking = Input.GetKey(KeyCode.Space);
+        Vector3 brake = braking && odeVelocity.magnitude > 0.1f? -velocityDir * brakeForceODE : Vector3.zero;
+
+        //drag forces
+        Vector3 airDrag = -odeVelocity * odeVelocity.magnitude * airDragCoefficient;
+        Vector3 rollingDrag = -odeVelocity * rollingResistance;
+
+        //final force
+        Vector3 netForce = engine + brake + airDrag + rollingDrag;
+
+        //now we make the differential equations
+        Vector3 acceleration = netForce / mass;  //iz F = ma => a = F/m
+        odeVelocity += acceleration * dt;   // v = a * dt
+
+        odePosition += odeVelocity * dt; // s = v * dt
+
+        float steerInput = horizontalInput;
+        float torque = steeringTorque * steerInput;
+
+        float angularAcceleration = torque / yawInertia;
+        odeYawRate += angularAcceleration * dt;
+
+        odeYawRate *= 0.98f;
+
+        odeYaw += odeYawRate * dt;
+
+        if (odeVelocity.magnitude > 0.1f)
+        {
+            Quaternion yawRotation = Quaternion.Euler(0f, odeYawRate * dt * Mathf.Rad2Deg, 0f);
+            odeVelocity = yawRotation * odeVelocity;
+        }
+
+        carRigidbody.velocity = odeVelocity;
+        carRigidbody.angularVelocity = new Vector3(0f, odeYawRate, 0f);
+
+        odePosition = carRigidbody.position;
+        odeYaw = carRigidbody.rotation.eulerAngles.y;
+
+    }
+
+    void SyncODEFromRigidbody()
+    {
+        odePosition = carRigidbody.position;
+        odeVelocity = carRigidbody.velocity;
+        odeYaw = carRigidbody.rotation.eulerAngles.y;
+        odeYawRate = carRigidbody.angularVelocity.y;
+    }
+
+    void UpdateWheelCollidersODE()
+    {
+        float wheelRPM = odeVelocity.magnitude * 30f;
+
+        frontRightWheelCollider.motorTorque = 0f;
+        frontLeftWheelCollider.motorTorque = 0f;
+
+        frontRightWheelCollider.steerAngle = steeringAngle * horizontalInput;
+        frontLeftWheelCollider.steerAngle = steeringAngle * horizontalInput;
+
+        frontRightWheelCollider.brakeTorque = 0f;
+        frontLeftWheelCollider.brakeTorque = 0f;
+        backRightWheelCollider.brakeTorque = 0f;
+        backLeftWheelCollider.brakeTorque = 0f;
     }
 }
